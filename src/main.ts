@@ -1,4 +1,9 @@
-import { tad, shape, keys, camera, math, mouse, text, make } from "../lib/TeachAndDraw.js";
+import { Collider } from "../lib/Collider.js";
+import { tad, shape, keys, camera, math, mouse, text, make, time } from "../lib/TeachAndDraw.js";
+import { Stamp } from "../lib/Img";
+import { IEnemy } from "./interfaces/IEnemy.js";
+import { ICollider } from "./interfaces/ICollider.js";
+import { Vector } from "../lib/Vector.js";
 
 tad.use(update);
 
@@ -8,55 +13,209 @@ tad.width = 800;
 tad.height = 600;
 
 const backgroundImage = tad.load.image(tad.width/2, (tad.height /4) - 790, "./src/assets/images/road.png");
-//backgroundImage.movedByCamera = false;
+
+const turretBulletImage = tad.load.image(0, 0, "./src/assets/images/bullet.png");
 
 const player = make.boxCollider(tad.width/2, tad.height - 50, 50, 50)
 player.friction = 0;
 player.colour = "red";
+player.movedByCamera = false;
 
-function update() {
-    if(keys.down("a")){
-        camera.x += 0.5;
-        player.velocity.x = -7;
-    }else if(keys.down("d")){
-        camera.x -= 0.5;
-        player.velocity.x = 7;
-    }else if(!keys.down("d") && !keys.down("a")){
+let enemies = Array<IEnemy>();
+enemies = [
+    {id: 0, x: 200, y: -200, image: tad.load.image(100, 100,"./src/assets/images/enemy_one.png"), maxLife: 100},
+    {id: 0, x: 500, y: -400, image: tad.load.image(100, 100,"./src/assets/images/van.png"), maxLife: 100, turret: tad.load.image(100, 100,"./src/assets/images/turret.png")}
+]
+const enemyGroup = make.group();
+const bulletGroup = make.group();
+
+let boundaryWallLeft = make.boxCollider(139, tad.height /2, 30, 600);
+boundaryWallLeft.movedByCamera = false;
+let boundaryWallRight = make.boxCollider(661, tad.height /2, 30, 600);
+boundaryWallRight.movedByCamera = false;
+let boundaryWallBottom = make.boxCollider(tad.width/2, tad.height + 15, 800, 30);
+boundaryWallBottom.movedByCamera = false;
+let boundaryWallTop = null;
+
+function update(): void{
+    MovePlayer();
+    CheckToSpawnEnemy();
+
+    // for laptop
+    //camera.y -= 3;
+
+    // for PC
+    camera.y -= 0.6;
+
+    backgroundImage.draw();
+    player.draw();
+    LoopThroughEnemyGroup();
+    enemyGroup.draw();
+    bulletGroup.draw();
+    DoBoundaryWallsThings();
+}
+
+function MovePlayer(): void{
+    if(keys.down("a") || keys.down("arrowleft")){
+        player.velocity.x = -10;
+    }else if(keys.down("d") || keys.down("arrowright")){
+        player.velocity.x = 10;
+    }else if((!keys.down("d") || keys.down("arrowright")) && (!keys.down("a") || keys.down("arrowleft"))){
         player.velocity.x = 0;
     }
 
     if(keys.down("w")){
-        camera.y -= 0.1;
         player.velocity.y = -10;
     }else if(keys.down("s")){
-        camera.y +=  0.05;
         player.velocity.y = 10;
     }else if(!keys.down("w") && !keys.down("s")){
         player.velocity.y = 0;
     }
-
-    //constantly move the image down
-    backgroundImage.velocity.y = 10;
-    backgroundImage.draw();
-    player.draw();
-
-    /*if(math.distance(camera.x, camera.y, tad.w/2, tad.h/2)){
-
-    }*/
 }
 
-function movePlayerImage(){
-
-}
-
-
-// if you want to change the zoom of the camera
-    /*if(mouse.wheel.up){
-        console.log("wheel up")
-        camera.zoom += 0.1;
+function CheckToSpawnEnemy(): void{
+    console.log(`enemies.length = ${enemies.length}`)
+    for(let i = 0; i < enemies.length; i++){
+        if(camera.y - 400 <= enemies[i].y){
+            SpawnEnemy(enemies[i]);
+            enemies.splice(i,1);
+            console.log("yes spawn enemy")
+            return;
+        }
     }
+}
 
-    if(mouse.wheel.down){
-        console.log("wheel down")
-        camera.zoom -= 0.1;
-    }*/
+function SpawnEnemy(enemy: IEnemy): void{
+    enemyGroup.push(CreateEnemyCollider(enemy));
+    if(enemy.turret){
+        console.log("yes turret")
+        enemyGroup.push(CreateEnemyTurretCollider(enemy.x, enemy.y, enemy.turret));
+    }
+}
+
+function CreateEnemyCollider(enemy: IEnemy): ICollider{
+    const newEnemy = make.boxCollider(enemy.x, enemy.y, 50, 50) as ICollider;
+    newEnemy.asset = enemy.image;
+    newEnemy.maxLife = enemy.maxLife;
+    return newEnemy;
+}
+
+function CreateEnemyTurretCollider(enemyX:number, enemyY:number, image:Stamp): ICollider{
+    const newTurret = make.boxCollider(enemyX, enemyY+10, 50, 50) as ICollider;
+    newTurret.asset = image;
+    newTurret.type = "turret";
+    newTurret.lastBullet = 0;
+    return newTurret;
+}
+
+function LoopThroughEnemyGroup(){
+    for(let i = 0; i < enemyGroup.length; i++){
+    if(enemyGroup[i].type === "turret")
+        TurretAimAtPlayer(enemyGroup[i]);
+    }
+}
+
+function TurretAimAtPlayer(turret:ICollider){
+    let vector = camera.screenToWorld(player.x, player.y)
+    const angleToFace = turret.getAngleToPoint(vector.x,vector.y);
+    turret.rotation = angleToFace;
+
+    if(turret.lastBullet + 2 < time.seconds){
+        console.log("create bullet")
+        CreateBullet(turret, angleToFace, vector.x, vector.y);
+    }
+}
+
+function CreateBullet(turret:ICollider, rotation:number, playerX:number, playerY:number){
+    const newBullet = make.boxCollider(turret.x, turret.y, 50, 50) as ICollider;
+    newBullet.asset = turretBulletImage;
+    newBullet.rotation = rotation;
+    newBullet.direction = rotation;
+    newBullet.friction = 0;
+    newBullet.speed = 50;
+    //newBullet.velocity.x = playerX;
+    //newBullet.velocity.y = playerY;
+    newBullet.lifespan = 5;
+    turret.lastBullet = time.seconds;
+    bulletGroup.push(newBullet);
+}
+
+function DoBoundaryWallsThings(){
+    DrawBoundaryWalls();
+    CheckForWallCollision();
+}
+
+function DrawBoundaryWalls(){
+    boundaryWallBottom.draw();
+    boundaryWallLeft.draw();
+    boundaryWallRight.draw();
+}
+
+function CheckForWallCollision(){
+    //check if enemy collides with walls
+    for(let i = 0; i < enemyGroup.length; i++){
+        /* TODO: consider the fact that the turret is not connected to the van, so if the van dies, the turret should die with it
+            Also, the logic for the boundaries is (almost) perfect, down to the pixel of instantly hitting the object, which means the enemy disappears before they are fully off screen.
+            ^ need to consider how to fix this       
+        */
+        //check bottom wall collision
+        if(CheckIfWIthinBoundsScreenToWorld(boundaryWallBottom, enemyGroup[i], "down")){
+            console.log("enemy collided with bottom wall");
+            enemyGroup[i].remove();
+            return;
+        //check left wall
+        }else if(CheckIfWIthinBoundsScreenToWorld(boundaryWallLeft, enemyGroup[i], "left")){
+            //bounce the enemy to the right
+            console.log("enemy collided with left wall");
+            return;
+        //check right wall
+        }else if(CheckIfWIthinBoundsScreenToWorld(boundaryWallRight, enemyGroup[i], "right")){
+            //bounce the enemy to the right
+            console.log("enemy collided with right wall");
+            return;
+        }
+    }
+    
+    //check if player collides with walls
+    //check bottom wall collision
+    if(CheckIfWIthinBounds(boundaryWallBottom, player, "down")){
+        //bounce the player up
+        console.log("player collided with bottom wall");
+    //check left wall
+    }else if(CheckIfWIthinBounds(boundaryWallLeft, player, "left")){
+        //bounce the player to the right
+        console.log("player collided with left wall");
+    //check right wall
+    }else if(CheckIfWIthinBounds(boundaryWallRight, player, "right")){
+        //bounce the player to the right
+        console.log("player collided with right wall");
+    }
+}
+
+//definitely a way to refactor these two methods, and the CheckForWallCollision() method to reduce duplicate code. need to figure out that solution, but it is a low priority
+function CheckIfWIthinBoundsScreenToWorld(object:Collider, collidedObject:Collider, directionOfTravel:string): boolean{
+    let objectVector = camera.screenToWorld(object.x, object.y)
+    if(directionOfTravel === "down" && object.h && (objectVector.y - (object.h/2)  <= collidedObject.y + (collidedObject.h/2))){
+        return true;
+    }else if(directionOfTravel === "up" && object.h && (objectVector.y + (object.h/2) >= collidedObject.y - (collidedObject.h/2))){
+        return true;
+    }else if(directionOfTravel === "left" && object.w && (objectVector.x + (object.w/2) >= collidedObject.x - (collidedObject.w/2))){
+        return true;
+    }else if(directionOfTravel === "right" && object.w && (objectVector.x - (object.w/2) <= collidedObject.x + (collidedObject.w/2))){
+        return true;
+    }
+    return false;
+}
+
+function CheckIfWIthinBounds(object:Collider, collidedObject:Collider, directionOfTravel:string): boolean{
+    if(directionOfTravel === "down" && object.h && (object.y - (object.h/2) <= collidedObject.y + (collidedObject.h/2))){
+        return true;
+    }else if(directionOfTravel === "up" && object.h && (object.y + (object.h/2) >= collidedObject.y - (collidedObject.h/2))){
+        return true;
+    }else if(directionOfTravel === "left" && object.w && (object.x + (object.w/2) >= collidedObject.x - (collidedObject.w/2))){
+        return true;
+    }else if(directionOfTravel === "right" && object.w && (object.x - (object.w/2) <= collidedObject.x + (collidedObject.w/2))){
+        return true;
+    }
+    return false;
+}
