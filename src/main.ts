@@ -3,31 +3,41 @@ import { tad, shape, keys, camera, math, mouse, text, make, time } from "../lib/
 import { Stamp } from "../lib/Img";
 import { IEnemy } from "./interfaces/IEnemy.js";
 import { ICollider } from "./interfaces/ICollider.js";
-import { Vector } from "../lib/Vector.js";
 
 tad.use(update);
 
-tad.debug = false;
+tad.debug = true;
 
 tad.width = 800;
 tad.height = 600;
 
 const backgroundImage = tad.load.image(tad.width/2, (tad.height /4) - 790, "./src/assets/images/road.png");
-
+const backgroundImageForDead = tad.load.image(tad.width/2, tad.height/2, "./src/assets/images/dead_background.png"); 
+const backgroundImageForWin = tad.load.image(tad.width/2, tad.height/2, "./src/assets/images/win_background.png"); 
+const enemyOne = tad.load.image(100, 100,"./src/assets/images/enemy_one.png");
+const enemyVan = tad.load.image(100, 100,"./src/assets/images/van.png");
+const turretImage = tad.load.image(100, 100,"./src/assets/images/turret.png");
 const turretBulletImage = tad.load.image(0, 0, "./src/assets/images/bullet.png");
+const playerImage = tad.load.image(0, 0, "./src/assets/images/player.png"); 
 
-const player = make.boxCollider(tad.width/2, tad.height - 50, 50, 50)
+const playerLifeImage = new Image();
+playerLifeImage.src = "src/assets/images/car_life.png";
+
+const player = make.boxCollider(tad.width/2, tad.height - 50, 50, 90) as ICollider;
 player.friction = 0;
 player.colour = "red";
 player.movedByCamera = false;
+player.maxLife = 3;
+player.currentLife = 3;
+player.asset = playerImage;
+player.asset.movedByCamera = false;
+//const playerLifeImage = tad.load.image(-100, -100, "./src/assets/images/car_life.png");
+//playerLifeImage.movedByCamera = false;
 
 let enemies = Array<IEnemy>();
-enemies = [
-    {id: 0, x: 200, y: -200, image: tad.load.image(100, 100,"./src/assets/images/enemy_one.png"), maxLife: 100},
-    {id: 0, x: 500, y: -400, image: tad.load.image(100, 100,"./src/assets/images/van.png"), maxLife: 100, turret: tad.load.image(100, 100,"./src/assets/images/turret.png")}
-]
-const enemyGroup = make.group();
-const bulletGroup = make.group();
+
+let enemyGroup = make.group();
+let bulletGroup = make.group();
 
 let boundaryWallLeft = make.boxCollider(139, tad.height /2, 30, 600);
 boundaryWallLeft.movedByCamera = false;
@@ -37,22 +47,37 @@ let boundaryWallBottom = make.boxCollider(tad.width/2, tad.height + 15, 800, 30)
 boundaryWallBottom.movedByCamera = false;
 let boundaryWallTop = null;
 
+let healthBarSection = document.getElementById("lifebar");
+
+let scene = "menu";
+
+let menuButton = make.button(tad.width/2, 100, 120, 40, "Play Game");
+menuButton.background = "#2148FF";
+menuButton.textColour = "white";
+menuButton.movedByCamera = false;
+
+let deadButton = make.button(tad.width/2, 100, 120, 40, "Menu");
+deadButton.movedByCamera = false;
+deadButton.background = "red";
+deadButton.textColour = "white";
+
+let winButton = make.button(tad.width/2, 100, 120, 40, "Menu");
+winButton.movedByCamera = false;
+winButton.background = "black";
+winButton.textColour = "white";
+
 function update(): void{
-    MovePlayer();
-    CheckToSpawnEnemy();
+    if(scene === "menu"){
+        MenuScene();
+    }else if(scene === "play"){
+        PlayGameScene();
+    }else if(scene === "dead"){
+        DeadScene();
+    // TODO: create a way for the player to win (how to make them cross the finish line?)
+    }else if (scene === "win"){
+        WinScene();
+    }
 
-    // for laptop
-    //camera.y -= 3;
-
-    // for PC
-    camera.y -= 0.6;
-
-    backgroundImage.draw();
-    player.draw();
-    LoopThroughEnemyGroup();
-    enemyGroup.draw();
-    bulletGroup.draw();
-    DoBoundaryWallsThings();
 }
 
 function MovePlayer(): void{
@@ -110,8 +135,9 @@ function CreateEnemyTurretCollider(enemyX:number, enemyY:number, image:Stamp): I
 
 function LoopThroughEnemyGroup(){
     for(let i = 0; i < enemyGroup.length; i++){
-    if(enemyGroup[i].type === "turret")
-        TurretAimAtPlayer(enemyGroup[i]);
+        if(enemyGroup[i].type === "turret"){
+            TurretAimAtPlayer(enemyGroup[i]);
+        }  
     }
 }
 
@@ -140,18 +166,7 @@ function CreateBullet(turret:ICollider, rotation:number, playerX:number, playerY
     bulletGroup.push(newBullet);
 }
 
-function DoBoundaryWallsThings(){
-    DrawBoundaryWalls();
-    CheckForWallCollision();
-}
-
-function DrawBoundaryWalls(){
-    boundaryWallBottom.draw();
-    boundaryWallLeft.draw();
-    boundaryWallRight.draw();
-}
-
-function CheckForWallCollision(){
+function CheckForEnemyGroupCollision(){
     //check if enemy collides with walls
     for(let i = 0; i < enemyGroup.length; i++){
         /* TODO: consider the fact that the turret is not connected to the van, so if the van dies, the turret should die with it
@@ -174,6 +189,7 @@ function CheckForWallCollision(){
             console.log("enemy collided with right wall");
             return;
         }
+
     }
     
     //check if player collides with walls
@@ -192,9 +208,35 @@ function CheckForWallCollision(){
     }
 }
 
-//definitely a way to refactor these two methods, and the CheckForWallCollision() method to reduce duplicate code. need to figure out that solution, but it is a low priority
+function CheckForBulletGroupCollision(){
+    for(let i = 0; i < bulletGroup.length; i++){
+        if(CheckIfWIthinBoundsScreenToWorldBullet(player, bulletGroup[i], "any")){
+            console.log("bullet hit player")
+            bulletGroup[i].remove();
+            player.currentLife--;
+            DrawPlayerHealth();
+            return;
+        }
+    }
+}
+
+function CheckIfWIthinBoundsScreenToWorldBullet(object:Collider, bullet:Collider, directionOfTravel:string): boolean{
+    let objectVector = camera.screenToWorld(object.x, object.y)
+
+    // TODO: fix targeting, the bullets hit the centre of the player before they will delete themselves
+    if ((bullet.x <= objectVector.x + (object.w/2)) && (bullet.x >= objectVector.x - (object.w/2)) && (bullet.y <= objectVector.y + (object.h/2)) && (bullet.y >= objectVector.y - (object.h/2))){
+        return true;
+    }
+    return false;
+}
+
+//definitely a way to refactor these two methods, and the CheckForEnemyGroupCollision() method to reduce duplicate code. need to figure out that solution, but it is a low priority
 function CheckIfWIthinBoundsScreenToWorld(object:Collider, collidedObject:Collider, directionOfTravel:string): boolean{
     let objectVector = camera.screenToWorld(object.x, object.y)
+    /* 
+    you then want to check if the bullets x value is within the players x + and - the width of the player 
+    and then you want to check if the bullets y value is with the players y + and - the height of the player.
+    */
     if(directionOfTravel === "down" && object.h && (objectVector.y - (object.h/2)  <= collidedObject.y + (collidedObject.h/2))){
         return true;
     }else if(directionOfTravel === "up" && object.h && (objectVector.y + (object.h/2) >= collidedObject.y - (collidedObject.h/2))){
@@ -218,4 +260,82 @@ function CheckIfWIthinBounds(object:Collider, collidedObject:Collider, direction
         return true;
     }
     return false;
+}
+
+function DrawPlayerHealth(){
+    healthBarSection!.innerHTML = "";
+    for(let i = 0; i < player.currentLife; i++){
+        healthBarSection?.append(playerLifeImage.cloneNode(true));
+    }
+}
+
+function MenuScene(){
+    menuButton.draw();
+    if(menuButton.released){
+        scene = "play";
+        ResetGameState();
+        DrawPlayerHealth();
+    }
+}
+
+function PlayGameScene(){
+    if(player.currentLife <= 0){
+        ResetGameState();
+        scene = "dead";
+    }
+
+    MovePlayer();
+    CheckToSpawnEnemy();
+
+    // for laptop
+    camera.y -= 3;
+
+    // for PC
+    //camera.y -= 0.6;
+
+    backgroundImage.draw();
+    player.draw();
+    LoopThroughEnemyGroup();
+    enemyGroup.draw();
+    bulletGroup.draw();
+    CheckForEnemyGroupCollision();
+    CheckForBulletGroupCollision();
+}
+
+function DeadScene(){
+    backgroundImageForDead.draw();
+    deadButton.draw();
+    text.size = 100;
+    text.colour = "white";
+    text.print(tad.w/2, tad.h/2, "You Lost :(");
+
+    if(deadButton.released){
+        scene = "menu";
+    }
+}
+
+function WinScene(){
+    backgroundImageForWin.draw();
+    winButton.draw();
+    text.size = 100;
+    text.colour = "black";
+    text.print(tad.w/2, tad.h/2, "You Win!");
+
+    if(winButton.released){
+        scene = "menu";
+    }
+}
+
+function ResetGameState(){
+    enemies = [
+        {id: 0, x: 200, y: -200, image: enemyOne, maxLife: 100},
+        {id: 0, x: 500, y: -400, image: enemyVan, maxLife: 100, turret: turretImage}
+    ];
+    camera.x = 400;
+    camera.y = 300;
+    player.x = tad.width/2;
+    player.y = tad.height - 50;
+    player.currentLife = 3;
+    enemyGroup = make.group();
+    bulletGroup = make.group();
 }
