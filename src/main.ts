@@ -6,7 +6,7 @@ import { ICollider } from "./interfaces/ICollider.js";
 
 tad.use(update);
 
-tad.debug = true;
+tad.debug = false;
 
 tad.width = 800;
 tad.height = 600;
@@ -19,6 +19,7 @@ const enemyVan = tad.load.image(100, 100,"./src/assets/images/van.png");
 const turretImage = tad.load.image(100, 100,"./src/assets/images/turret.png");
 const turretBulletImage = tad.load.image(0, 0, "./src/assets/images/bullet.png");
 const playerImage = tad.load.image(0, 0, "./src/assets/images/player.png"); 
+const playerHurtImage = tad.load.image(0, 0, "./src/assets/images/player_hurt.png"); 
 
 const playerLifeImage = new Image();
 playerLifeImage.src = "src/assets/images/car_life.png";
@@ -49,25 +50,71 @@ let boundaryWallTop = null;
 
 let healthBarSection = document.getElementById("lifebar");
 
-let scene = "menu";
+//"begin" is the default scene, change this to see the other screens easily
+let scene = "begin";
+let previousScene = "";
 
-let menuButton = make.button(tad.width/2, 100, 120, 40, "Play Game");
+let menuButton = make.button(tad.width/2, 100, 140, 40, "Play Game");
 menuButton.background = "#2148FF";
 menuButton.textColour = "white";
 menuButton.movedByCamera = false;
 
-let deadButton = make.button(tad.width/2, 100, 120, 40, "Menu");
+let beginButton = make.button(tad.width/2, 100, 140, 40, "Begin!");
+beginButton.background = "#2148FF";
+beginButton.textColour = "white";
+beginButton.movedByCamera = false;
+
+let deadButton = make.button(tad.width/2, 100, 140, 40, "Menu");
 deadButton.movedByCamera = false;
 deadButton.background = "red";
 deadButton.textColour = "white";
 
-let winButton = make.button(tad.width/2, 100, 120, 40, "Menu");
+let winButton = make.button(tad.width/2, 100, 140, 40, "Menu");
 winButton.movedByCamera = false;
 winButton.background = "black";
 winButton.textColour = "white";
 
+let settingsButton = make.button(tad.width/2, 230, 140, 40, "Settings");
+settingsButton.movedByCamera = false;
+settingsButton.background = "black";
+settingsButton.textColour = "white";
+
+let unpauseButton = make.button(tad.width/2, 100, 140, 40, "Unpause");
+unpauseButton.movedByCamera = false;
+unpauseButton.background = "black";
+unpauseButton.textColour = "white";
+
+let menuFromSettingsButton = make.button(tad.width/2, 440, 140, 40, "Menu");
+menuFromSettingsButton.movedByCamera = false;
+menuFromSettingsButton.background = "black";
+menuFromSettingsButton.textColour = "white";
+
+let cameraSpeedSlider = make.slider(tad.width/2, 230, 140);
+cameraSpeedSlider.movedByCamera = false;
+cameraSpeedSlider.max = 500;
+cameraSpeedSlider.value = 300;
+cameraSpeedSlider.min = 1;
+
+let cameraMoveSpeed = cameraSpeedSlider.value / 100;
+let cameraStartPosition = 300;
+let cameraYPreviousPosition = cameraStartPosition;
+
+let muteCheckbox = make.checkbox(tad.width/2, 340, 30);
+
+let menuThemeAudio = tad.load.sound("./src/assets/audio/Battletoads_(NES)_Music-Title_Theme_With_Drums.mp3");
+menuThemeAudio.maxCopies = 1;
+let playAudio = tad.load.sound("./src/assets/audio/Battletoads_(NES)_Music_Turbo_Tunnel_Part_2.mp3");
+playAudio.maxCopies = 1;
+let gameOverAudio = tad.load.sound("./src/assets/audio/Battletoads_(NES)_Music_Game_Over.mp3");
+gameOverAudio.maxCopies = 1;
+let settingsAudio = tad.load.sound("./src/assets/audio/Battletoads_(NES)_Music_Cut_Scenes.mp3");
+settingsAudio.maxCopies = 1;
+
 function update(): void{
-    if(scene === "menu"){
+    if(scene === "begin"){
+        BeginScene();
+    }
+    else if(scene === "menu"){
         MenuScene();
     }else if(scene === "play"){
         PlayGameScene();
@@ -76,6 +123,8 @@ function update(): void{
     // TODO: create a way for the player to win (how to make them cross the finish line?)
     }else if (scene === "win"){
         WinScene();
+    }else if (scene === "settings"){
+        SettingsMenuScene();
     }
 
 }
@@ -122,6 +171,10 @@ function CreateEnemyCollider(enemy: IEnemy): ICollider{
     const newEnemy = make.boxCollider(enemy.x, enemy.y, 50, 50) as ICollider;
     newEnemy.asset = enemy.image;
     newEnemy.maxLife = enemy.maxLife;
+    if(enemy.type === "mover"){
+        newEnemy.velocity.x = 15;
+        newEnemy.friction = 0;
+    }
     return newEnemy;
 }
 
@@ -182,14 +235,21 @@ function CheckForEnemyGroupCollision(){
         }else if(CheckIfWIthinBoundsScreenToWorld(boundaryWallLeft, enemyGroup[i], "left")){
             //bounce the enemy to the right
             console.log("enemy collided with left wall");
+            enemyGroup[i].direction = 90;
             return;
         //check right wall
         }else if(CheckIfWIthinBoundsScreenToWorld(boundaryWallRight, enemyGroup[i], "right")){
-            //bounce the enemy to the right
+            //bounce the enemy to the righ
             console.log("enemy collided with right wall");
+            enemyGroup[i].direction = 270;
             return;
         }
-
+        if(CheckIfWIthinBoundsScreenToWorldBullet(player, enemyGroup[i])){
+            console.log("enemy hit player")
+            player.currentLife--;
+            DrawPlayerHealth();
+            return;
+        }
     }
     
     //check if player collides with walls
@@ -210,7 +270,7 @@ function CheckForEnemyGroupCollision(){
 
 function CheckForBulletGroupCollision(){
     for(let i = 0; i < bulletGroup.length; i++){
-        if(CheckIfWIthinBoundsScreenToWorldBullet(player, bulletGroup[i], "any")){
+        if(CheckIfWIthinBoundsScreenToWorldBullet(player, bulletGroup[i])){
             console.log("bullet hit player")
             bulletGroup[i].remove();
             player.currentLife--;
@@ -220,7 +280,7 @@ function CheckForBulletGroupCollision(){
     }
 }
 
-function CheckIfWIthinBoundsScreenToWorldBullet(object:Collider, bullet:Collider, directionOfTravel:string): boolean{
+function CheckIfWIthinBoundsScreenToWorldBullet(object:Collider, bullet:Collider): boolean{
     let objectVector = camera.screenToWorld(object.x, object.y)
 
     // TODO: fix targeting, the bullets hit the centre of the player before they will delete themselves
@@ -269,29 +329,119 @@ function DrawPlayerHealth(){
     }
 }
 
+function BeginScene(){
+    beginButton.draw();
+
+    if(beginButton.released){
+        scene = "menu";
+        previousScene = "begin";
+    }
+}
+
 function MenuScene(){
+    if(settingsAudio.isPlaying){
+        settingsAudio.stop();
+    }
+    if(gameOverAudio.isPlaying){
+        gameOverAudio.stop();
+    }
+    if(!menuThemeAudio.isPlaying){
+        menuThemeAudio.play();
+    }
+
     menuButton.draw();
+    settingsButton.draw();
+
     if(menuButton.released){
         scene = "play";
+        previousScene = "menu";
         ResetGameState();
         DrawPlayerHealth();
+    }
+
+    if(settingsButton.released){
+        scene = "settings";
+        previousScene = "menu";
+    }
+}
+
+function SettingsMenuScene(){
+    if(menuThemeAudio.isPlaying){
+        menuThemeAudio.stop();
+    }
+    if(playAudio.isPlaying){
+        playAudio.stop();
+    }
+    if(!settingsAudio.isPlaying){
+        settingsAudio.play();
+    }
+
+    console.log("settingsAudio.volume = ", settingsAudio.volume)
+
+    if(previousScene === "menu"){
+        winButton.draw();
+    }else if(previousScene === "play"){
+        unpauseButton.draw();
+        menuFromSettingsButton.draw();
+    }
+
+    if(winButton.released || menuFromSettingsButton.released){
+        scene = "menu";
+        previousScene = "settings";
+    }
+
+    if(unpauseButton.released || keys.released("escape") || keys.released("p")){
+        camera.y = cameraYPreviousPosition;
+        scene = "play";
+        previousScene = "settings";
+    }
+
+    text.size = 20;
+    text.colour = "white";
+    text.print(tad.w/2, 200, "Camera speed");
+
+    cameraSpeedSlider.draw();
+    cameraMoveSpeed = cameraSpeedSlider.value / 100;
+
+    text.size = 20;
+    text.colour = "white";
+    text.print(tad.w/2, 300, "Mute audio?");
+    muteCheckbox.draw();
+
+    if(muteCheckbox.checked){
+        menuThemeAudio.volume = 0;
+        playAudio.volume = 0;
+        gameOverAudio.volume = 0;
+        settingsAudio.volume = 0;
+    }else{
+        menuThemeAudio.volume = 100;
+        playAudio.volume = 100;
+        gameOverAudio.volume = 100;
+        settingsAudio.volume = 100;
     }
 }
 
 function PlayGameScene(){
+    if(menuThemeAudio.isPlaying){
+        menuThemeAudio.stop();
+    }
+    if(settingsAudio.isPlaying){
+        settingsAudio.stop();
+    }
+    if(!playAudio.isPlaying){
+        playAudio.play();
+    }
+
     if(player.currentLife <= 0){
         ResetGameState();
         scene = "dead";
+        previousScene = "play";
     }
 
     MovePlayer();
     CheckToSpawnEnemy();
 
-    // for laptop
-    camera.y -= 3;
-
-    // for PC
-    //camera.y -= 0.6;
+    camera.y -= cameraMoveSpeed;
 
     backgroundImage.draw();
     player.draw();
@@ -300,9 +450,23 @@ function PlayGameScene(){
     bulletGroup.draw();
     CheckForEnemyGroupCollision();
     CheckForBulletGroupCollision();
+
+    if(keys.released("escape") || keys.released("p")){
+        cameraYPreviousPosition = camera.y;
+        camera.y = cameraStartPosition;
+        scene = "settings";
+        previousScene = "play";
+    }
 }
 
 function DeadScene(){
+    if(playAudio.isPlaying){
+        playAudio.stop();
+    }
+    if(!gameOverAudio.isPlaying){
+        gameOverAudio.play();
+    }
+
     backgroundImageForDead.draw();
     deadButton.draw();
     text.size = 100;
@@ -311,10 +475,14 @@ function DeadScene(){
 
     if(deadButton.released){
         scene = "menu";
+        previousScene = "play";
     }
 }
 
 function WinScene(){
+    if(playAudio.isPlaying){
+        playAudio.stop();
+    }
     backgroundImageForWin.draw();
     winButton.draw();
     text.size = 100;
@@ -323,16 +491,32 @@ function WinScene(){
 
     if(winButton.released){
         scene = "menu";
+        previousScene = "play";
     }
 }
 
 function ResetGameState(){
     enemies = [
-        {id: 0, x: 200, y: -200, image: enemyOne, maxLife: 100},
-        {id: 0, x: 500, y: -400, image: enemyVan, maxLife: 100, turret: turretImage}
+        {id: 0, x: 200, y: -200, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 1, x: 500, y: -400, image: enemyVan, maxLife: 100, type: "van", turret: turretImage},
+        {id: 0, x: 300, y: -1000, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 0, x: 500, y: -1300, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 0, x: 440, y: -1600, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 0, x: 300, y: -2000, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 0, x: 500, y: -2400, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 0, x: 210, y: -2900, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 0, x: 360, y: -3350, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 0, x: 640, y: -3640, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 0, x: 200, y: -4000, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 0, x: 300, y: -4000, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 0, x: 540, y: -4000, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 0, x: 200, y: -5000, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 0, x: 300, y: -5000, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 0, x: 440, y: -5000, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 0, x: 600, y: -5000, image: enemyOne, maxLife: 100, type: "mover"},
     ];
     camera.x = 400;
-    camera.y = 300;
+    camera.y = cameraStartPosition;
     player.x = tad.width/2;
     player.y = tad.height - 50;
     player.currentLife = 3;

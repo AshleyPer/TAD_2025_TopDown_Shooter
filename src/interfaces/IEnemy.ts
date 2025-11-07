@@ -8,4 +8,5 @@ export interface IEnemy {
     image: Stamp;
     maxLife: number;
     turret?: Stamp;
+    type: string;
 }
