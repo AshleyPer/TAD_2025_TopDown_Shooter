@@ -4,4 +4,7 @@ export interface ICollider extends Collider{
     currentLife: number;
     type: string;
     lastBullet: number;
+    invincible: boolean;
+    lastTimeHit: number;
+    startedInvincibility: number;
 }

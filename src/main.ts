@@ -3,10 +3,12 @@ import { tad, shape, keys, camera, math, mouse, text, make, time } from "../lib/
 import { Stamp } from "../lib/Img";
 import { IEnemy } from "./interfaces/IEnemy.js";
 import { ICollider } from "./interfaces/ICollider.js";
+import { Group } from "../lib/Group.js";
 
 tad.use(update);
 
-tad.debug = false;
+//tad.debug = false;
+tad.debug = true;
 
 tad.width = 800;
 tad.height = 600;
@@ -26,28 +28,81 @@ const enemyVan = tad.load.image(100, 100,"./src/assets/images/van.png");
 const turretImage = tad.load.image(100, 100,"./src/assets/images/turret.png");
 const turretBulletImage = tad.load.image(0, 0, "./src/assets/images/bullet.png");
 const playerImage = tad.load.image(0, 0, "./src/assets/images/player.png"); 
-const playerHurtImage = tad.load.image(0, 0, "./src/assets/images/player_hurt.png"); 
 
 const playerLifeImage = new Image();
 playerLifeImage.src = "src/assets/images/car_life.png";
+
+const playerLifeInvincibleImage = new Image();
+playerLifeInvincibleImage.src = "src/assets/images/car_life_invincible.png";
+
+const invincibilityPickupImage = tad.load.image(tad.width/2, tad.height/2, "./src/assets/images/invincibility_pickup.png");
+invincibilityPickupImage.movedByCamera = false;
 /* End of Images */
 
 /* Player */
-const player = make.boxCollider(tad.width/2, tad.height - 50, 50, 90) as ICollider;
-player.friction = 0;
-player.colour = "red";
-player.movedByCamera = false;
+const playerHit = tad.load.animation(
+	tad.w/2, tad.h/2,
+	"./src/assets/images/player_hurt.png",
+	"./src/assets/images/player.png",
+	"./src/assets/images/player_hurt.png",
+	"./src/assets/images/player.png",
+	"./src/assets/images/player_hurt.png",
+	"./src/assets/images/player.png"
+);
+playerHit.duration = 2;
+playerHit.movedByCamera = false;
+playerHit.looping = true;
+
+const playerInvincible = tad.load.animation(
+	tad.w/2, tad.h/2,
+	"./src/assets/images/player_invincible.png",
+	"./src/assets/images/player_invincible_two.png",
+	"./src/assets/images/player_invincible.png",
+	"./src/assets/images/player_invincible_two.png",
+);
+playerInvincible.duration = 1;
+playerInvincible.movedByCamera = false;
+playerInvincible.looping = true;
+
 // default maxlife and currentlife is 3 TODO: SET BACK TO 3!!!
-player.maxLife = 20;
-player.currentLife = 20;
-player.asset = playerImage;
-player.asset.movedByCamera = false;
+let player = CreatePlayerCollider();
+function CreatePlayerCollider(): ICollider{
+    let player = make.boxCollider(tad.width/2, tad.height - 50, 50, 90) as ICollider;
+    player.friction = 0;
+    player.movedByCamera = false;
+    player.maxLife = 15;
+    player.currentLife = 15;
+    player.invincible = false;
+    player.lastTimeHit = -5000;
+    player.startedInvincibility = -5000;
+    return player;
+}
 
 let healthBarSection = document.getElementById("lifebar");
 /* End of Player */
 
 /* Enemies */
 let enemies = Array<IEnemy>();
+let starterEnemies:Array<IEnemy> = [
+    {id:0, x:200, y:-200, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:1, x:500, y:-400, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
+    {id:2, x:300, y:-1000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:3, x:500, y:-1300, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:4, x:440, y:-1600, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:5, x:300, y:-2000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:6, x:500, y:-2400, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:7, x:210, y:-2900, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:8, x:360, y:-3350, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:9, x:640, y:-3640, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:10, x:200, y:-4000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:11, x:300, y:-4000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:12, x:540, y:-4000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:13, x:200, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:14, x:300, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:15, x:440, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:16, x:600, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+];
+
 let enemyGroup = make.group();
 let bulletGroup = make.group();
 let randomDirectionArray = [270, 90];
@@ -128,7 +183,21 @@ let settingsAudio = tad.load.sound("./src/assets/audio/Battletoads_(NES)_Music_C
 settingsAudio.maxCopies = 1;
 /* End of Audio related */
 
+/* Pickup related */
+//invincibilityPickupImage
+let invincibilityPickupCollider = CreateInvisibilityPickupCollider();
+
+function CreateInvisibilityPickupCollider(): ICollider{
+    let invincibilityPickupCollider = make.boxCollider(tad.width/2, tad.height/2, 62, 60) as ICollider;
+    invincibilityPickupCollider.movedByCamera = false;
+    invincibilityPickupCollider.asset = invincibilityPickupImage;
+    invincibilityPickupCollider.asset.movedByCamera = false;
+    return invincibilityPickupCollider;
+}
+/* End of Pickup related */
+
 function update(): void{
+    //console.log("camera.y in update() = ", camera.y)
     //change the scene
     if(scene === "begin"){
         BeginScene();
@@ -166,8 +235,14 @@ function MovePlayer(): void{
 
 function DrawPlayerHealth(){
     healthBarSection!.innerHTML = "";
+    console.log("player.invincible = ", player.invincible)
+    console.log("!player.invincible = ", !player.invincible)
     for(let i = 0; i < player.currentLife; i++){
-        healthBarSection?.append(playerLifeImage.cloneNode(true));
+        if(!player.invincible){
+            healthBarSection?.append(playerLifeImage.cloneNode(true));
+        }else{
+            healthBarSection?.append(playerLifeInvincibleImage.cloneNode(true));
+        }
     }
 }
 /* End of Player specific methods */
@@ -189,13 +264,12 @@ function SpawnEnemy(enemy: IEnemy): void{
     enemyGroup.push(CreateEnemyCollider(enemy));
     if(enemy.turret){
         console.log("yes turret")
-        enemyGroup.push(CreateEnemyTurretCollider(enemy.x, enemy.y, enemy.turret));
+        enemyGroup.push(CreateEnemyTurretCollider(enemy.x, enemy.y));
     }
 }
 
 function CreateEnemyCollider(enemy: IEnemy): ICollider{
-    const newEnemy = make.boxCollider(enemy.x, enemy.y, 50, 50) as ICollider;
-    newEnemy.asset = enemy.image;
+    const newEnemy = make.boxCollider(enemy.x, enemy.y, enemy.w, enemy.h) as ICollider;
     newEnemy.maxLife = enemy.maxLife;
     if(enemy.type === "mover"){
         //randomly choose if the mover is going left or right
@@ -207,13 +281,16 @@ function CreateEnemyCollider(enemy: IEnemy): ICollider{
         console.log("newEnemy.x = ", newEnemy.x)
         newEnemy.friction = 0;
         newEnemy.type = "mover";
+        newEnemy.asset = enemyOne;
+    }else if(enemy.type === "van"){
+        newEnemy.asset = enemyVan;
     }
     return newEnemy;
 }
 
-function CreateEnemyTurretCollider(enemyX:number, enemyY:number, image:Stamp): ICollider{
+function CreateEnemyTurretCollider(enemyX:number, enemyY:number): ICollider{
     const newTurret = make.boxCollider(enemyX, enemyY+10, 50, 50) as ICollider;
-    newTurret.asset = image;
+    newTurret.asset = turretImage;
     newTurret.type = "turret";
     newTurret.lastBullet = 0;
     return newTurret;
@@ -232,7 +309,7 @@ function TurretAimAtPlayer(turret:ICollider){
     const angleToFace = turret.getAngleToPoint(vector.x,vector.y);
     turret.rotation = angleToFace;
 
-    if(turret.lastBullet + 2 < time.seconds){
+    if(turret.lastBullet + 0.2 < time.seconds){
         console.log("create bullet")
         CreateBullet(turret, angleToFace, vector.x, vector.y);
     }
@@ -279,10 +356,16 @@ function CheckForEnemyGroupCollision(){
             enemyGroup[i].direction = 270;
             return;
         }
-        if(CheckIfWIthinBoundsScreenToWorldBullet(player, enemyGroup[i])){
+        if(CheckIfCollisionScreenToWorld(player, enemyGroup[i])){
             console.log("enemy hit player")
-            player.currentLife--;
-            DrawPlayerHealth();
+            if(!player.invincible){
+                let currentTime = window.performance.now();
+                if(player.lastTimeHit+2000 <= currentTime){
+                    player.currentLife--;
+                    DrawPlayerHealth();
+                    player.lastTimeHit = currentTime;
+                }
+            }
             return;
         }
     }
@@ -292,30 +375,35 @@ function CheckForEnemyGroupCollision(){
     if(CheckIfWIthinBounds(boundaryWallBottom, player, "down")){
         //bounce the player up
         console.log("player collided with bottom wall");
+        player.y -= 10;
     //check left wall
     }else if(CheckIfWIthinBounds(boundaryWallLeft, player, "left")){
         //bounce the player to the right
+        player.x += 10;
         console.log("player collided with left wall");
     //check right wall
     }else if(CheckIfWIthinBounds(boundaryWallRight, player, "right")){
         //bounce the player to the right
         console.log("player collided with right wall");
+        player.x -= 10;
     }
 }
 
 function CheckForBulletGroupCollision(){
     for(let i = 0; i < bulletGroup.length; i++){
-        if(CheckIfWIthinBoundsScreenToWorldBullet(player, bulletGroup[i])){
+        if(CheckIfCollisionScreenToWorld(player, bulletGroup[i])){
             console.log("bullet hit player")
             bulletGroup[i].remove();
-            player.currentLife--;
-            DrawPlayerHealth();
+            if(!player.invincible){
+                player.currentLife--;
+                DrawPlayerHealth();
+            }
             return;
         }
     }
 }
 
-function CheckIfWIthinBoundsScreenToWorldBullet(object:Collider, bullet:Collider): boolean{
+function CheckIfCollisionScreenToWorld(object:Collider, bullet:Collider): boolean{
     let objectVector = camera.screenToWorld(object.x, object.y)
 
     // TODO: fix targeting, the bullets hit the centre of the player before they will delete themselves
@@ -416,24 +504,12 @@ function PlayGameScene(){
         playAudio.play();
     }
 
-    //bring back drawing per frame if I want to
-    /*
-    let currentTime = window.performance.now();
-
-    if(lastFrameTime+16.6 <= currentTime){
-        console.log("yes performance now is active")
-        console.log("lastFrameTime= ", lastFrameTime)
-        console.log("currentTime= ", currentTime)
-        lastFrameTime = currentTime;
-        DrawGame();
-    }*/
-
     DrawGame();
 }
 
 function DrawGame(){
+    //console.log("camera.y start = ", camera.y)
     if(player.currentLife <= 0){
-        ResetGameState();
         scene = "dead";
         previousScene = "play";
         justChangedScene = true;
@@ -446,6 +522,49 @@ function DrawGame(){
     camera.y -= cameraMoveSpeed;
 
     backgroundImage.draw();
+
+    invincibilityPickupCollider.draw();
+    
+    let currentTime = window.performance.now();
+    if(invincibilityPickupCollider.collides(player)){
+        console.log("player collided with invincibility pickup")
+        //@ts-ignore
+        player.asset.playing = false;
+        player.invincible = true;
+        player.startedInvincibility = currentTime;
+        player.lastTimeHit = -5000;
+        invincibilityPickupCollider.remove();
+        DrawPlayerHealth();
+    }
+
+    if(player.invincible && player.startedInvincibility+5000 >= currentTime){
+        //@ts-ignore
+        if(!player.asset?.playing){
+            player.asset = playerInvincible;
+            player.asset.movedByCamera = false;
+            //@ts-ignore
+            player.asset.playing = true;
+        }
+    }else if(!player.invincible && player.lastTimeHit+2000 >= currentTime){
+        console.log("in IFRAMES window")
+        //@ts-ignore
+        if(!player.asset?.playing){
+            player.asset = playerHit;
+            player.asset.movedByCamera = false;
+            //@ts-ignore
+            player.asset.playing = true;
+        }
+    }else{
+        console.log("I AM VINCIBLE")
+        //@ts-ignore
+        if(player.asset?.playing){
+            //@ts-ignore
+            player.asset.playing = false;
+        }
+        player.asset = playerImage;
+        player.asset.movedByCamera = false;
+    }
+
     player.draw();
     LoopThroughEnemyGroup();
     enemyGroup.draw();
@@ -547,14 +666,15 @@ function SettingsMenuScene(){
 }
 
 function DeadScene(){
+    if(justChangedScene){
+        camera.y = cameraStartPosition;
+    }
     if(playAudio.isPlaying){
         playAudio.stop();
     }
     if(!gameOverAudio.isPlaying){
         gameOverAudio.play();
     }
-
-    camera.y = cameraStartPosition;
 
     backgroundImageForDead.draw();
     deadButton.draw();
@@ -596,30 +716,19 @@ function WinScene(){
 /* End of Draw Scenes */
 
 function ResetGameState(){
-    enemies = [
-        {id: 0, x: 200, y: -200, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 1, x: 500, y: -400, image: enemyVan, maxLife: 100, type: "van", turret: turretImage},
-        {id: 2, x: 300, y: -1000, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 3, x: 500, y: -1300, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 4, x: 440, y: -1600, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 5, x: 300, y: -2000, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 6, x: 500, y: -2400, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 7, x: 210, y: -2900, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 8, x: 360, y: -3350, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 9, x: 640, y: -3640, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 10, x: 200, y: -4000, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 11, x: 300, y: -4000, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 12, x: 540, y: -4000, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 13, x: 200, y: -5000, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 14, x: 300, y: -5000, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 15, x: 440, y: -5000, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 16, x: 600, y: -5000, image: enemyOne, maxLife: 100, type: "mover"},
-    ];
+    ClearGroup(enemyGroup);
+    ClearGroup(bulletGroup);
+    enemies = [...starterEnemies];
+    invincibilityPickupCollider.remove();
+    invincibilityPickupCollider = CreateInvisibilityPickupCollider();
     camera.x = 400;
     camera.y = cameraStartPosition;
-    player.x = tad.width/2;
-    player.y = tad.height - 50;
-    player.currentLife = 3;
-    enemyGroup = make.group();
-    bulletGroup = make.group();
+    player.remove();
+    player = CreatePlayerCollider();
+}
+
+function ClearGroup(group:Group){
+    for(let i = 0; i < group.length; i++){
+        group[i].remove();
+    }
 }

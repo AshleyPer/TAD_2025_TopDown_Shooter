@@ -4,6 +4,8 @@ export interface IEnemy {
     id: number;
     x: number;
     y: number;
+    w: number;
+    h: number;
     image: Stamp;
     maxLife: number;
     turret?: Stamp;
