@@ -11,9 +11,16 @@ tad.debug = false;
 tad.width = 800;
 tad.height = 600;
 
+/* Gameplay stuff */
+let lastFrameTime = window.performance.now();
+/* End of Gameplay stuff */
+
+/* Images */
 const backgroundImage = tad.load.image(tad.width/2, (tad.height /4) - 790, "./src/assets/images/road.png");
-const backgroundImageForDead = tad.load.image(tad.width/2, tad.height/2, "./src/assets/images/dead_background.png"); 
+const backgroundImageForDead = tad.load.image(tad.width/2, tad.height/2, "./src/assets/images/dead_background.png");
+backgroundImageForDead.movedByCamera = false;
 const backgroundImageForWin = tad.load.image(tad.width/2, tad.height/2, "./src/assets/images/win_background.png"); 
+backgroundImageForWin.movedByCamera = false;
 const enemyOne = tad.load.image(100, 100,"./src/assets/images/enemy_one.png");
 const enemyVan = tad.load.image(100, 100,"./src/assets/images/van.png");
 const turretImage = tad.load.image(100, 100,"./src/assets/images/turret.png");
@@ -23,23 +30,31 @@ const playerHurtImage = tad.load.image(0, 0, "./src/assets/images/player_hurt.pn
 
 const playerLifeImage = new Image();
 playerLifeImage.src = "src/assets/images/car_life.png";
+/* End of Images */
 
+/* Player */
 const player = make.boxCollider(tad.width/2, tad.height - 50, 50, 90) as ICollider;
 player.friction = 0;
 player.colour = "red";
 player.movedByCamera = false;
-player.maxLife = 3;
-player.currentLife = 3;
+// default maxlife and currentlife is 3 TODO: SET BACK TO 3!!!
+player.maxLife = 20;
+player.currentLife = 20;
 player.asset = playerImage;
 player.asset.movedByCamera = false;
-//const playerLifeImage = tad.load.image(-100, -100, "./src/assets/images/car_life.png");
-//playerLifeImage.movedByCamera = false;
 
+let healthBarSection = document.getElementById("lifebar");
+/* End of Player */
+
+/* Enemies */
 let enemies = Array<IEnemy>();
-
 let enemyGroup = make.group();
 let bulletGroup = make.group();
+let randomDirectionArray = [270, 90];
+let moverSpeed = 13;
+/* End of Enemies */
 
+/* Boundary walls */
 let boundaryWallLeft = make.boxCollider(139, tad.height /2, 30, 600);
 boundaryWallLeft.movedByCamera = false;
 let boundaryWallRight = make.boxCollider(661, tad.height /2, 30, 600);
@@ -47,12 +62,12 @@ boundaryWallRight.movedByCamera = false;
 let boundaryWallBottom = make.boxCollider(tad.width/2, tad.height + 15, 800, 30);
 boundaryWallBottom.movedByCamera = false;
 let boundaryWallTop = null;
+/* End of Boundary walls */
 
-let healthBarSection = document.getElementById("lifebar");
-
-//"begin" is the default scene, change this to see the other screens easily
+/* Menu/Scene related */
 let scene = "begin";
 let previousScene = "";
+let justChangedScene = false;
 
 let menuButton = make.button(tad.width/2, 100, 140, 40, "Play Game");
 menuButton.background = "#2148FF";
@@ -100,7 +115,9 @@ let cameraStartPosition = 300;
 let cameraYPreviousPosition = cameraStartPosition;
 
 let muteCheckbox = make.checkbox(tad.width/2, 340, 30);
+/* End of Menu/Scene related */
 
+/* Audio related */
 let menuThemeAudio = tad.load.sound("./src/assets/audio/Battletoads_(NES)_Music-Title_Theme_With_Drums.mp3");
 menuThemeAudio.maxCopies = 1;
 let playAudio = tad.load.sound("./src/assets/audio/Battletoads_(NES)_Music_Turbo_Tunnel_Part_2.mp3");
@@ -109,26 +126,26 @@ let gameOverAudio = tad.load.sound("./src/assets/audio/Battletoads_(NES)_Music_G
 gameOverAudio.maxCopies = 1;
 let settingsAudio = tad.load.sound("./src/assets/audio/Battletoads_(NES)_Music_Cut_Scenes.mp3");
 settingsAudio.maxCopies = 1;
+/* End of Audio related */
 
 function update(): void{
+    //change the scene
     if(scene === "begin"){
         BeginScene();
-    }
-    else if(scene === "menu"){
+    }else if(scene === "menu"){
         MenuScene();
     }else if(scene === "play"){
         PlayGameScene();
     }else if(scene === "dead"){
         DeadScene();
-    // TODO: create a way for the player to win (how to make them cross the finish line?)
     }else if (scene === "win"){
         WinScene();
     }else if (scene === "settings"){
         SettingsMenuScene();
     }
-
 }
 
+/* Player specific methods */
 function MovePlayer(): void{
     if(keys.down("a") || keys.down("arrowleft")){
         player.velocity.x = -10;
@@ -147,6 +164,15 @@ function MovePlayer(): void{
     }
 }
 
+function DrawPlayerHealth(){
+    healthBarSection!.innerHTML = "";
+    for(let i = 0; i < player.currentLife; i++){
+        healthBarSection?.append(playerLifeImage.cloneNode(true));
+    }
+}
+/* End of Player specific methods */
+
+/* Enemy specific methods */
 function CheckToSpawnEnemy(): void{
     console.log(`enemies.length = ${enemies.length}`)
     for(let i = 0; i < enemies.length; i++){
@@ -172,8 +198,15 @@ function CreateEnemyCollider(enemy: IEnemy): ICollider{
     newEnemy.asset = enemy.image;
     newEnemy.maxLife = enemy.maxLife;
     if(enemy.type === "mover"){
-        newEnemy.velocity.x = 15;
+        //randomly choose if the mover is going left or right
+        let randomise = Math.floor(Math.random() * randomDirectionArray.length);
+        console.log("randomise = ", randomise);
+        newEnemy.direction = randomDirectionArray[randomise];
+        console.log("newEnemy.direction = ", newEnemy.direction)
+        newEnemy.speed = moverSpeed;
+        console.log("newEnemy.x = ", newEnemy.x)
         newEnemy.friction = 0;
+        newEnemy.type = "mover";
     }
     return newEnemy;
 }
@@ -190,7 +223,7 @@ function LoopThroughEnemyGroup(){
     for(let i = 0; i < enemyGroup.length; i++){
         if(enemyGroup[i].type === "turret"){
             TurretAimAtPlayer(enemyGroup[i]);
-        }  
+        } 
     }
 }
 
@@ -218,7 +251,9 @@ function CreateBullet(turret:ICollider, rotation:number, playerX:number, playerY
     turret.lastBullet = time.seconds;
     bulletGroup.push(newBullet);
 }
+/* End of Enemy specific methods */
 
+/* Collision checks */
 function CheckForEnemyGroupCollision(){
     //check if enemy collides with walls
     for(let i = 0; i < enemyGroup.length; i++){
@@ -239,7 +274,7 @@ function CheckForEnemyGroupCollision(){
             return;
         //check right wall
         }else if(CheckIfWIthinBoundsScreenToWorld(boundaryWallRight, enemyGroup[i], "right")){
-            //bounce the enemy to the righ
+            //bounce the enemy to the left
             console.log("enemy collided with right wall");
             enemyGroup[i].direction = 270;
             return;
@@ -321,21 +356,20 @@ function CheckIfWIthinBounds(object:Collider, collidedObject:Collider, direction
     }
     return false;
 }
+/* End of Collision checks */
 
-function DrawPlayerHealth(){
-    healthBarSection!.innerHTML = "";
-    for(let i = 0; i < player.currentLife; i++){
-        healthBarSection?.append(playerLifeImage.cloneNode(true));
-    }
-}
-
+/* Draw Scenes */
 function BeginScene(){
     beginButton.draw();
 
     if(beginButton.released){
         scene = "menu";
         previousScene = "begin";
+        justChangedScene = true;
+        return;
     }
+
+    justChangedScene = false;
 }
 
 function MenuScene(){
@@ -355,17 +389,99 @@ function MenuScene(){
     if(menuButton.released){
         scene = "play";
         previousScene = "menu";
+        justChangedScene = true;
         ResetGameState();
         DrawPlayerHealth();
+        return;
     }
 
     if(settingsButton.released){
         scene = "settings";
         previousScene = "menu";
+        justChangedScene = true;
+        return;
     }
+
+    justChangedScene = false;
+}
+
+function PlayGameScene(){
+    if(menuThemeAudio.isPlaying){
+        menuThemeAudio.stop();
+    }
+    if(settingsAudio.isPlaying){
+        settingsAudio.stop();
+    }
+    if(!playAudio.isPlaying){
+        playAudio.play();
+    }
+
+    //bring back drawing per frame if I want to
+    /*
+    let currentTime = window.performance.now();
+
+    if(lastFrameTime+16.6 <= currentTime){
+        console.log("yes performance now is active")
+        console.log("lastFrameTime= ", lastFrameTime)
+        console.log("currentTime= ", currentTime)
+        lastFrameTime = currentTime;
+        DrawGame();
+    }*/
+
+    DrawGame();
+}
+
+function DrawGame(){
+    if(player.currentLife <= 0){
+        ResetGameState();
+        scene = "dead";
+        previousScene = "play";
+        justChangedScene = true;
+        return;
+    }
+
+    MovePlayer();
+    CheckToSpawnEnemy();
+
+    camera.y -= cameraMoveSpeed;
+
+    backgroundImage.draw();
+    player.draw();
+    LoopThroughEnemyGroup();
+    enemyGroup.draw();
+    bulletGroup.draw();
+    CheckForEnemyGroupCollision();
+    CheckForBulletGroupCollision();
+
+    if(keys.released("escape") || keys.released("p")){
+        cameraYPreviousPosition = camera.y;
+        camera.y = cameraStartPosition;
+        scene = "settings";
+        previousScene = "play";
+        justChangedScene = true;
+        return;
+    }
+
+    //hard coding the finish line, and checking if the player crosses it
+    if(camera.screenToWorld(player.x, player.y).y <= -5000){
+        scene = "win";
+        previousScene = "play";
+        justChangedScene = true;
+        return;
+    }
+
+    justChangedScene = false;
 }
 
 function SettingsMenuScene(){
+    if(justChangedScene){
+        for(let i = 0; i < enemyGroup.length; i++){
+            if(enemyGroup[i].type === "mover"){
+                enemyGroup[i].speed = 0;
+            }
+        }
+    }
+
     if(menuThemeAudio.isPlaying){
         menuThemeAudio.stop();
     }
@@ -375,8 +491,6 @@ function SettingsMenuScene(){
     if(!settingsAudio.isPlaying){
         settingsAudio.play();
     }
-
-    console.log("settingsAudio.volume = ", settingsAudio.volume)
 
     if(previousScene === "menu"){
         winButton.draw();
@@ -388,12 +502,21 @@ function SettingsMenuScene(){
     if(winButton.released || menuFromSettingsButton.released){
         scene = "menu";
         previousScene = "settings";
+        justChangedScene = true;
+        return;
     }
 
     if(unpauseButton.released || keys.released("escape") || keys.released("p")){
         camera.y = cameraYPreviousPosition;
         scene = "play";
         previousScene = "settings";
+        justChangedScene = true;
+        for(let i = 0; i < enemyGroup.length; i++){
+            if(enemyGroup[i].type === "mover"){
+                enemyGroup[i].speed = moverSpeed;
+            }
+        }
+        return;
     }
 
     text.size = 20;
@@ -419,44 +542,8 @@ function SettingsMenuScene(){
         gameOverAudio.volume = 100;
         settingsAudio.volume = 100;
     }
-}
 
-function PlayGameScene(){
-    if(menuThemeAudio.isPlaying){
-        menuThemeAudio.stop();
-    }
-    if(settingsAudio.isPlaying){
-        settingsAudio.stop();
-    }
-    if(!playAudio.isPlaying){
-        playAudio.play();
-    }
-
-    if(player.currentLife <= 0){
-        ResetGameState();
-        scene = "dead";
-        previousScene = "play";
-    }
-
-    MovePlayer();
-    CheckToSpawnEnemy();
-
-    camera.y -= cameraMoveSpeed;
-
-    backgroundImage.draw();
-    player.draw();
-    LoopThroughEnemyGroup();
-    enemyGroup.draw();
-    bulletGroup.draw();
-    CheckForEnemyGroupCollision();
-    CheckForBulletGroupCollision();
-
-    if(keys.released("escape") || keys.released("p")){
-        cameraYPreviousPosition = camera.y;
-        camera.y = cameraStartPosition;
-        scene = "settings";
-        previousScene = "play";
-    }
+    justChangedScene = false;
 }
 
 function DeadScene(){
@@ -467,6 +554,8 @@ function DeadScene(){
         gameOverAudio.play();
     }
 
+    camera.y = cameraStartPosition;
+
     backgroundImageForDead.draw();
     deadButton.draw();
     text.size = 100;
@@ -476,13 +565,19 @@ function DeadScene(){
     if(deadButton.released){
         scene = "menu";
         previousScene = "play";
+        justChangedScene = true;
+        return;
     }
+
+    justChangedScene = false;
 }
 
 function WinScene(){
     if(playAudio.isPlaying){
         playAudio.stop();
     }
+    camera.y = cameraStartPosition;
+
     backgroundImageForWin.draw();
     winButton.draw();
     text.size = 100;
@@ -492,28 +587,33 @@ function WinScene(){
     if(winButton.released){
         scene = "menu";
         previousScene = "play";
+        justChangedScene = true;
+        return;
     }
+
+    justChangedScene = false;
 }
+/* End of Draw Scenes */
 
 function ResetGameState(){
     enemies = [
         {id: 0, x: 200, y: -200, image: enemyOne, maxLife: 100, type: "mover"},
         {id: 1, x: 500, y: -400, image: enemyVan, maxLife: 100, type: "van", turret: turretImage},
-        {id: 0, x: 300, y: -1000, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 0, x: 500, y: -1300, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 0, x: 440, y: -1600, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 0, x: 300, y: -2000, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 0, x: 500, y: -2400, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 0, x: 210, y: -2900, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 0, x: 360, y: -3350, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 0, x: 640, y: -3640, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 0, x: 200, y: -4000, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 0, x: 300, y: -4000, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 0, x: 540, y: -4000, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 0, x: 200, y: -5000, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 0, x: 300, y: -5000, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 0, x: 440, y: -5000, image: enemyOne, maxLife: 100, type: "mover"},
-        {id: 0, x: 600, y: -5000, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 2, x: 300, y: -1000, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 3, x: 500, y: -1300, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 4, x: 440, y: -1600, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 5, x: 300, y: -2000, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 6, x: 500, y: -2400, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 7, x: 210, y: -2900, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 8, x: 360, y: -3350, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 9, x: 640, y: -3640, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 10, x: 200, y: -4000, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 11, x: 300, y: -4000, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 12, x: 540, y: -4000, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 13, x: 200, y: -5000, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 14, x: 300, y: -5000, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 15, x: 440, y: -5000, image: enemyOne, maxLife: 100, type: "mover"},
+        {id: 16, x: 600, y: -5000, image: enemyOne, maxLife: 100, type: "mover"},
     ];
     camera.x = 400;
     camera.y = cameraStartPosition;
