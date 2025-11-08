@@ -70,8 +70,8 @@ function CreatePlayerCollider(): ICollider{
     let player = make.boxCollider(tad.width/2, tad.height - 50, 50, 90) as ICollider;
     player.friction = 0;
     player.movedByCamera = false;
-    player.maxLife = 15;
-    player.currentLife = 15;
+    player.maxLife = 3;
+    player.currentLife = 3;
     player.invincible = false;
     player.lastTimeHit = -5000;
     player.startedInvincibility = -5000;
@@ -116,7 +116,8 @@ let boundaryWallRight = make.boxCollider(661, tad.height /2, 30, 600);
 boundaryWallRight.movedByCamera = false;
 let boundaryWallBottom = make.boxCollider(tad.width/2, tad.height + 15, 800, 30);
 boundaryWallBottom.movedByCamera = false;
-let boundaryWallTop = null;
+let boundaryWallTop = make.boxCollider(tad.width/2, -16, 550, 30);
+boundaryWallTop.movedByCamera = false;
 /* End of Boundary walls */
 
 /* Menu/Scene related */
@@ -162,7 +163,7 @@ menuFromSettingsButton.textColour = "white";
 let cameraSpeedSlider = make.slider(tad.width/2, 230, 140);
 cameraSpeedSlider.movedByCamera = false;
 cameraSpeedSlider.max = 500;
-cameraSpeedSlider.value = 300;
+cameraSpeedSlider.value = 200;
 cameraSpeedSlider.min = 1;
 
 let cameraMoveSpeed = cameraSpeedSlider.value / 100;
@@ -235,8 +236,6 @@ function MovePlayer(): void{
 
 function DrawPlayerHealth(){
     healthBarSection!.innerHTML = "";
-    console.log("player.invincible = ", player.invincible)
-    console.log("!player.invincible = ", !player.invincible)
     for(let i = 0; i < player.currentLife; i++){
         if(!player.invincible){
             healthBarSection?.append(playerLifeImage.cloneNode(true));
@@ -365,6 +364,8 @@ function CheckForEnemyGroupCollision(){
                     DrawPlayerHealth();
                     player.lastTimeHit = currentTime;
                 }
+            }else{
+                enemyGroup[i].remove();
             }
             return;
         }
@@ -376,6 +377,10 @@ function CheckForEnemyGroupCollision(){
         //bounce the player up
         console.log("player collided with bottom wall");
         player.y -= 10;
+    }else if(CheckIfWIthinBounds(boundaryWallTop, player, "up")){
+        //bounce the player up
+        console.log("player collided with bottom wall");
+        player.y += 10;
     //check left wall
     }else if(CheckIfWIthinBounds(boundaryWallLeft, player, "left")){
         //bounce the player to the right
@@ -395,8 +400,12 @@ function CheckForBulletGroupCollision(){
             console.log("bullet hit player")
             bulletGroup[i].remove();
             if(!player.invincible){
-                player.currentLife--;
-                DrawPlayerHealth();
+                let currentTime = window.performance.now();
+                if(player.lastTimeHit+2000 <= currentTime){
+                    player.currentLife--;
+                    DrawPlayerHealth();
+                    player.lastTimeHit = currentTime;
+                }
             }
             return;
         }
@@ -561,8 +570,12 @@ function DrawGame(){
             //@ts-ignore
             player.asset.playing = false;
         }
+        player.invincible = false;
         player.asset = playerImage;
         player.asset.movedByCamera = false;
+        if(healthBarSection?.children[0].getAttribute("src") === "src/assets/images/car_life_invincible.png"){
+            DrawPlayerHealth();
+        }
     }
 
     player.draw();
