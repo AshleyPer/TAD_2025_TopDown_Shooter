@@ -6,8 +6,8 @@ import { Group } from "../lib/Group.js";
 
 tad.use(update);
 
-//tad.debug = false;
-tad.debug = true;
+tad.debug = false;
+//tad.debug = true;
 
 tad.width = 800;
 tad.height = 600;
@@ -241,7 +241,7 @@ function CreateHealthPickupCollider(): ICollider{
     return playerHealthPickupCollider;
 }
 
-let lastSpawnedHealthPickup = 0;
+//let lastSpawnedHealthPickup = 0;
 /* End of Pickup related */
 
 function update(): void{
@@ -784,10 +784,10 @@ function SettingsMenuScene(){
         gameOverAudio.volume = 0;
         settingsAudio.volume = 0;
     }else{
-        menuThemeAudio.volume = 100;
-        playAudio.volume = 100;
-        gameOverAudio.volume = 100;
-        settingsAudio.volume = 100;
+        menuThemeAudio.volume = 50;
+        playAudio.volume = 50;
+        gameOverAudio.volume = 50;
+        settingsAudio.volume = 50;
     }
 
     justChangedScene = false;
