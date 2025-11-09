@@ -116,10 +116,15 @@ let starterEnemies:Array<IEnemy> = [
     {id:18, x:350, y:-4500, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
     {id:19, x:450, y:-4500, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
     {id:20, x:650, y:-4500, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
-    {id:21, x:200, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {id:22, x:300, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {id:23, x:440, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {id:24, x:600, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:21, x:650, y:-4750, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
+    {id:22, x:200, y:-4750, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
+    {id:23, x:650, y:-4900, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
+    {id:24, x:200, y:-4900, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
+    {id:25, x:220, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:26, x:300, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:27, x:440, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:28, x:500, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:29, x:590, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
 ];
 
 let enemyGroup = make.group();
@@ -194,7 +199,7 @@ menuFromSettingsButton.textColour = "white";
 let cameraSpeedSlider = make.slider(tad.width/2, 230, 140);
 cameraSpeedSlider.movedByCamera = false;
 cameraSpeedSlider.max = 500;
-cameraSpeedSlider.value = 200;
+cameraSpeedSlider.value = 150;
 cameraSpeedSlider.min = 1;
 
 let cameraMoveSpeed = cameraSpeedSlider.value / 100;
@@ -235,10 +240,11 @@ function CreateHealthPickupCollider(): ICollider{
     playerHealthPickupCollider.asset.movedByCamera = false;
     return playerHealthPickupCollider;
 }
+
+let lastSpawnedHealthPickup = 0;
 /* End of Pickup related */
 
 function update(): void{
-    //console.log("camera.y in update() = ", camera.y)
     //change the scene
     if(scene === "begin"){
         BeginScene();
@@ -257,19 +263,35 @@ function update(): void{
 
 /* Player specific methods */
 function MovePlayer(): void{
-    if(keys.down("a") || keys.down("arrowleft")){
-        player.velocity.x = -10;
-    }else if(keys.down("d") || keys.down("arrowright")){
-        player.velocity.x = 10;
-    }else if((!keys.down("d") || keys.down("arrowright")) && (!keys.down("a") || keys.down("arrowleft"))){
+    if(keys.down("a") || keys.down("leftarrow")){
+        if(player.invincible){
+            player.velocity.x = -20;
+        }else{
+            player.velocity.x = -10;
+        }
+    }else if(keys.down("d") || keys.down("rightarrow")){
+        if(player.invincible){
+            player.velocity.x = 20;
+        }else{
+            player.velocity.x = 10;
+        }
+    }else if((!keys.down("d") || keys.down("rightarrow")) && (!keys.down("a") || keys.down("leftarrow"))){
         player.velocity.x = 0;
     }
 
-    if(keys.down("w")){
-        player.velocity.y = -10;
-    }else if(keys.down("s")){
-        player.velocity.y = 10;
-    }else if(!keys.down("w") && !keys.down("s")){
+    if(keys.down("w") || keys.down("uparrow")){
+        if(player.invincible){
+            player.velocity.y = -20;
+        }else{
+            player.velocity.y = -10;
+        }
+    }else if(keys.down("s") || keys.down("downarrow")){
+        if(player.invincible){
+            player.velocity.y = 20;
+        }else{
+            player.velocity.y = 10;
+        }
+    }else if(!keys.down("w") && !keys.down("s") && !keys.down("uparrow") && !keys.down("downarrow")){
         player.velocity.y = 0;
     }
 }
@@ -311,7 +333,6 @@ function CreatePlayerBullet(){
 
 /* Enemy specific methods */
 function CheckToSpawnEnemy(): void{
-    console.log(`enemies.length = ${enemies.length}`)
     for(let i = 0; i < enemies.length; i++){
         if(camera.y - 400 <= enemies[i].y){
             SpawnEnemy(enemies[i]);
@@ -325,7 +346,6 @@ function CheckToSpawnEnemy(): void{
 function SpawnEnemy(enemy: IEnemy): void{
     enemyGroup.push(CreateEnemyCollider(enemy));
     if(enemy.turret){
-        console.log("yes turret")
         enemyGroup.push(CreateEnemyTurretCollider(enemy.x, enemy.y, enemy.id));
     }
 }
@@ -338,11 +358,8 @@ function CreateEnemyCollider(enemy: IEnemy): ICollider{
     if(enemy.type === "mover"){
         //randomly choose if the mover is going left or right
         let randomise = Math.floor(Math.random() * randomDirectionArray.length);
-        console.log("randomise = ", randomise);
         newEnemy.direction = randomDirectionArray[randomise];
-        console.log("newEnemy.direction = ", newEnemy.direction)
         newEnemy.speed = moverSpeed;
-        console.log("newEnemy.x = ", newEnemy.x)
         newEnemy.friction = 0;
         newEnemy.asset = enemyOne;
     }else if(enemy.type === "van"){
@@ -398,24 +415,20 @@ function CheckForEnemyGroupCollision(){
     for(let i = 0; i < enemyGroup.length; i++){
         //check bottom wall collision
         if(CheckIfWIthinBoundsScreenToWorld(boundaryWallBottom, enemyGroup[i], "down")){
-            console.log("enemy collided with bottom wall");
             enemyGroup[i].remove();
             return;
         //check left wall
         }else if(CheckIfWIthinBoundsScreenToWorld(boundaryWallLeft, enemyGroup[i], "left")){
             //bounce the enemy to the right
-            console.log("enemy collided with left wall");
             enemyGroup[i].direction = 90;
             return;
         //check right wall
         }else if(CheckIfWIthinBoundsScreenToWorld(boundaryWallRight, enemyGroup[i], "right")){
             //bounce the enemy to the left
-            console.log("enemy collided with right wall");
             enemyGroup[i].direction = 270;
             return;
         }
         if(CheckIfCollisionScreenToWorld(player, enemyGroup[i])){
-            console.log("enemy hit player")
             if(!player.invincible){
                 let currentTime = window.performance.now();
                 if(player.lastTimeHit+2000 <= currentTime){
@@ -424,7 +437,6 @@ function CheckForEnemyGroupCollision(){
                     player.lastTimeHit = currentTime;
                 }
             }else{
-                console.log("remove enemy")
                 let vector = camera.worldToScreen(enemyGroup[i].x, enemyGroup[i].y)
                 enemyGroup[i].remove();
                 enemyDeadAnimation.x = vector.x;
@@ -434,12 +446,9 @@ function CheckForEnemyGroupCollision(){
             }
             return;
         }
-        console.log("????, enemyGroup[i].type = ", enemyGroup[i].type)
         if(enemyGroup[i].type === "van"){
-            console.log("yes enemy type is van, and playerBulletGroup.length = ", playerBulletGroup.length)
             for(let j = 0; j < playerBulletGroup.length; j++){
                 if(playerBulletGroup[j].collides(enemyGroup[i])){
-                    console.log("player bullet hit enemy van")
                     let vector = camera.worldToScreen(enemyGroup[i].x, enemyGroup[i].y)
                     playerBulletGroup[j].remove();
                     enemyGroup[i].remove();
@@ -462,21 +471,17 @@ function CheckForEnemyGroupCollision(){
     //check bottom wall collision
     if(CheckIfWIthinBounds(boundaryWallBottom, player, "down")){
         //bounce the player up
-        console.log("player collided with bottom wall");
         player.y -= 10;
     }else if(CheckIfWIthinBounds(boundaryWallTop, player, "up")){
         //bounce the player up
-        console.log("player collided with bottom wall");
         player.y += 10;
     //check left wall
     }else if(CheckIfWIthinBounds(boundaryWallLeft, player, "left")){
         //bounce the player to the right
         player.x += 10;
-        console.log("player collided with left wall");
     //check right wall
     }else if(CheckIfWIthinBounds(boundaryWallRight, player, "right")){
         //bounce the player to the right
-        console.log("player collided with right wall");
         player.x -= 10;
     }
 }
@@ -501,8 +506,6 @@ function CheckForBulletGroupCollision(){
 
 function CheckIfCollisionScreenToWorld(object:Collider, bullet:Collider): boolean{
     let objectVector = camera.screenToWorld(object.x, object.y)
-    console.log(`playerbullet.x = ${object.x}, playerbullet.y = ${object.y}`)
-    console.log(`enemy.x = ${bullet.x}, enemy.y = ${bullet.y}`)
     if ((bullet.x <= objectVector.x + (object.w/2)) && (bullet.x >= objectVector.x - (object.w/2)) && (bullet.y <= objectVector.y + (object.h/2)) && (bullet.y >= objectVector.y - (object.h/2))){
         return true;
     }
@@ -604,7 +607,6 @@ function PlayGameScene(){
 }
 
 function DrawGame(){
-    //console.log("camera.y start = ", camera.y)
     if(player.currentLife <= 0){
         scene = "dead";
         previousScene = "play";
@@ -623,15 +625,21 @@ function DrawGame(){
 
     ShouldPlayerShoot();
     playerBulletGroup.draw();
-
+    
+    let currentTime = window.performance.now();
+    // want to make it so the health pickup will spawn every 3 seconds or so, 
+    // and it would be nice for it to have a little bit of randomisation for the x and y
+    /*if(lastSpawnedHealthPickup+3000 >= currentTime){
+        playerHealthPickupCollider.draw();
+    }*/
     playerHealthPickupCollider.draw();
+
     if(playerHealthPickupCollider.collides(player)){
         playerHealthPickupCollider.remove();
         player.currentLife++;
         DrawPlayerHealth();
     }
-    
-    let currentTime = window.performance.now();
+
     if(invincibilityPickupCollider.collides(player)){
         console.log("player collided with invincibility pickup")
         //@ts-ignore
@@ -652,7 +660,6 @@ function DrawGame(){
             player.asset.playing = true;
         }
     }else if(!player.invincible && player.lastTimeHit+2000 >= currentTime){
-        console.log("in IFRAMES window")
         //@ts-ignore
         if(!player.asset?.playing){
             player.asset = playerHit;
@@ -661,7 +668,6 @@ function DrawGame(){
             player.asset.playing = true;
         }
     }else{
-        console.log("I AM VINCIBLE")
         //@ts-ignore
         if(player.asset?.playing){
             //@ts-ignore
