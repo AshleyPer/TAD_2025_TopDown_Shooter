@@ -7,4 +7,5 @@ export interface ICollider extends Collider{
     invincible: boolean;
     lastTimeHit: number;
     startedInvincibility: number;
+    id: number;
 }

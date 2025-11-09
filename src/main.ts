@@ -1,6 +1,5 @@
 import { Collider } from "../lib/Collider.js";
-import { tad, shape, keys, camera, math, mouse, text, make, time } from "../lib/TeachAndDraw.js";
-import { Stamp } from "../lib/Img";
+import { tad, keys, camera, mouse, text, make, time } from "../lib/TeachAndDraw.js";
 import { IEnemy } from "./interfaces/IEnemy.js";
 import { ICollider } from "./interfaces/ICollider.js";
 import { Group } from "../lib/Group.js";
@@ -44,7 +43,7 @@ playerHealthPickupImage.movedByCamera = false;
 playerHealthPickupImage.scale = 80;
 
 const bulletImage = tad.load.image(tad.width/2, tad.height/2, "./src/assets/images/player_bullet.png");
-bulletImage.movedByCamera = false;
+//bulletImage.movedByCamera = false;
 bulletImage.scale = 120;
 
 /* End of Images */
@@ -96,31 +95,31 @@ const playerBulletGroup = make.group();
 /* Enemies */
 let enemies = Array<IEnemy>();
 let starterEnemies:Array<IEnemy> = [
-    {x:200, y:-200, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {x:300, y:-400, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
-    {x:300, y:-1000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {x:500, y:-1300, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {x:200, y:-1400, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
-    {x:440, y:-1600, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {x:300, y:-2000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {x:500, y:-2100, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
-    {x:250, y:-2100, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
-    {x:340, y:-2100, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
-    {x:500, y:-2400, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {x:210, y:-2900, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {x:360, y:-3350, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {x:640, y:-3640, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {x:200, y:-4000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {x:300, y:-4000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {x:540, y:-4000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {x:200, y:-4500, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
-    {x:350, y:-4500, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
-    {x:450, y:-4500, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
-    {x:650, y:-4500, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
-    {x:200, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {x:300, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {x:440, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
-    {x:600, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:0, x:200, y:-200, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:1, x:300, y:-400, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
+    {id:2, x:300, y:-1000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:3, x:500, y:-1300, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:4, x:200, y:-1400, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
+    {id:5, x:440, y:-1600, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:6, x:300, y:-2000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:7, x:500, y:-2100, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
+    {id:8, x:250, y:-2100, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
+    {id:9, x:340, y:-2100, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
+    {id:10, x:500, y:-2400, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:11, x:210, y:-2900, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:12, x:360, y:-3350, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:13, x:640, y:-3640, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:14, x:200, y:-4000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:15, x:300, y:-4000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:16, x:540, y:-4000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:17, x:200, y:-4500, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
+    {id:18, x:350, y:-4500, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
+    {id:19, x:450, y:-4500, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
+    {id:20, x:650, y:-4500, w:50, h:100, image:enemyVan, maxLife:100, type:"van", turret:turretImage},
+    {id:21, x:200, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:22, x:300, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:23, x:440, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
+    {id:24, x:600, y:-5000, w:50, h:100, image:enemyOne, maxLife:100, type:"mover"},
 ];
 
 let enemyGroup = make.group();
@@ -230,7 +229,7 @@ function CreateInvisibilityPickupCollider(): ICollider{
 let playerHealthPickupCollider = CreateHealthPickupCollider();
 
 function CreateHealthPickupCollider(): ICollider{
-    let playerHealthPickupCollider = make.boxCollider(200, 200, 52, 30) as ICollider;
+    let playerHealthPickupCollider = make.boxCollider(tad.width/2, tad.height/2+100, 52, 30) as ICollider;
     playerHealthPickupCollider.movedByCamera = false;
     playerHealthPickupCollider.asset = playerHealthPickupImage;
     playerHealthPickupCollider.asset.movedByCamera = false;
@@ -296,16 +295,15 @@ function ShouldPlayerShoot(){
 }
 
 function CreatePlayerBullet(){
+    let vector = camera.screenToWorld(player.x, player.y)
     const angleToFace = player.getAngleToPoint(mouse.x,mouse.y);
-    const newBullet = make.boxCollider(player.x, player.y- 50, 20, 20) as ICollider;
+    const newBullet = make.boxCollider(vector.x, vector.y- 50, 20, 20) as ICollider;
     newBullet.asset = bulletImage;
-    newBullet.asset.movedByCamera = false;
-    newBullet.movedByCamera = false;
     newBullet.rotation = angleToFace;
     newBullet.direction = angleToFace;
     newBullet.friction = 0;
-    newBullet.speed = 12;
-    newBullet.lifespan = 3;
+    newBullet.speed = 50;
+    newBullet.lifespan = 2;
     player.lastBullet = time.seconds;
     playerBulletGroup.push(newBullet);
 }
@@ -328,7 +326,7 @@ function SpawnEnemy(enemy: IEnemy): void{
     enemyGroup.push(CreateEnemyCollider(enemy));
     if(enemy.turret){
         console.log("yes turret")
-        enemyGroup.push(CreateEnemyTurretCollider(enemy.x, enemy.y));
+        enemyGroup.push(CreateEnemyTurretCollider(enemy.x, enemy.y, enemy.id));
     }
 }
 
@@ -336,6 +334,7 @@ function CreateEnemyCollider(enemy: IEnemy): ICollider{
     const newEnemy = make.boxCollider(enemy.x, enemy.y, enemy.w, enemy.h) as ICollider;
     newEnemy.maxLife = enemy.maxLife;
     newEnemy.type = enemy.type;
+    newEnemy.id = enemy.id;
     if(enemy.type === "mover"){
         //randomly choose if the mover is going left or right
         let randomise = Math.floor(Math.random() * randomDirectionArray.length);
@@ -352,8 +351,9 @@ function CreateEnemyCollider(enemy: IEnemy): ICollider{
     return newEnemy;
 }
 
-function CreateEnemyTurretCollider(enemyX:number, enemyY:number): ICollider{
+function CreateEnemyTurretCollider(enemyX:number, enemyY:number, enemyID:number): ICollider{
     const newTurret = make.boxCollider(enemyX, enemyY+10, 50, 50) as ICollider;
+    newTurret.id = enemyID;
     newTurret.asset = turretImage;
     newTurret.type = "turret";
     newTurret.lastBullet = 0;
@@ -375,19 +375,17 @@ function TurretAimAtPlayer(turret:ICollider){
 
     if(turret.lastBullet + 0.2 < time.seconds){
         console.log("create bullet")
-        CreateBullet(turret, angleToFace, vector.x, vector.y);
+        CreateBullet(turret, angleToFace);
     }
 }
 
-function CreateBullet(turret:ICollider, rotation:number, playerX:number, playerY:number){
+function CreateBullet(turret:ICollider, rotation:number){
     const newBullet = make.boxCollider(turret.x, turret.y, 50, 50) as ICollider;
     newBullet.asset = turretBulletImage;
     newBullet.rotation = rotation;
     newBullet.direction = rotation;
     newBullet.friction = 0;
     newBullet.speed = 50;
-    //newBullet.velocity.x = playerX;
-    //newBullet.velocity.y = playerY;
     newBullet.lifespan = 5;
     turret.lastBullet = time.seconds;
     bulletGroup.push(newBullet);
@@ -439,15 +437,17 @@ function CheckForEnemyGroupCollision(){
         console.log("????, enemyGroup[i].type = ", enemyGroup[i].type)
         if(enemyGroup[i].type === "van"){
             console.log("yes enemy type is van, and playerBulletGroup.length = ", playerBulletGroup.length)
-            for(let i = 0; i < playerBulletGroup.length; i++){
-                console.log("playerbulletgrouplengthparty")
-                // TODO : check why the bullets are not colliding with the enemy as expected
-                // and fix the bullet direction
-                if(CheckIfCollisionScreenToWorld(playerBulletGroup[i], enemyGroup[i])){
+            for(let j = 0; j < playerBulletGroup.length; j++){
+                if(playerBulletGroup[j].collides(enemyGroup[i])){
                     console.log("player bullet hit enemy van")
                     let vector = camera.worldToScreen(enemyGroup[i].x, enemyGroup[i].y)
-                    bulletGroup[i].remove();
+                    playerBulletGroup[j].remove();
                     enemyGroup[i].remove();
+                    for(let k = 0; k < enemyGroup.length; k++){
+                        if(enemyGroup[k].type === "turret" && enemyGroup[k].id === enemyGroup[i].id){
+                            enemyGroup[k].remove();
+                        }
+                    }
                     enemyDeadAnimation.x = vector.x;
                     enemyDeadAnimation.y = vector.y;
                     enemyDeadAnimation.playing = true;
@@ -501,6 +501,8 @@ function CheckForBulletGroupCollision(){
 
 function CheckIfCollisionScreenToWorld(object:Collider, bullet:Collider): boolean{
     let objectVector = camera.screenToWorld(object.x, object.y)
+    console.log(`playerbullet.x = ${object.x}, playerbullet.y = ${object.y}`)
+    console.log(`enemy.x = ${bullet.x}, enemy.y = ${bullet.y}`)
     if ((bullet.x <= objectVector.x + (object.w/2)) && (bullet.x >= objectVector.x - (object.w/2)) && (bullet.y <= objectVector.y + (object.h/2)) && (bullet.y >= objectVector.y - (object.h/2))){
         return true;
     }
